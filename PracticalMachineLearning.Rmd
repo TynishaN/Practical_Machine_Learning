@@ -1,0 +1,217 @@
+---
+title: "Weight Lifting Exercise Prediction"
+author: "Tynisha Niles"
+date: "2026-07-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Practical Machine Learning Course Project
+
+## Background
+
+Using wearable devices such as accelerometers, it is possible to collect detailed information about physical activity. The goal of this project is to predict the manner in which participants performed a weight lifting exercise. The response variable is **classe**, which has five possible categories (A, B, C, D, and E).
+
+---
+
+# Load Required Libraries
+
+```{r libraries, message=FALSE, warning=FALSE}
+
+library(ggplot2)
+library(caret)
+library(randomForest)
+library(dplyr)
+```
+
+---
+
+# Load the Data
+
+The training and testing datasets are imported into R.
+
+```{r load-data}
+trainingData <- read.csv(
+  "pml-training.csv",
+  na.strings = c("NA", "", "#DIV/0!")
+)
+
+testingData <- read.csv(
+  "pml-testing.csv",
+  na.strings = c("NA", "", "#DIV/0!")
+)
+```
+
+---
+
+# Explore the Data
+
+The dimensions and structure of the datasets are examined before cleaning.
+
+```{r explore-data}
+dim(trainingData)
+dim(testingData)
+
+str(trainingData)
+
+summary(trainingData)
+```
+
+---
+
+# Clean the Data
+
+Columns containing missing values are removed. The first seven variables are also removed because they contain identification information that does not contribute to prediction.
+
+```{r clean-data}
+trainingData <- trainingData[, colSums(is.na(trainingData)) == 0]
+testingData <- testingData[, colSums(is.na(testingData)) == 0]
+
+trainingData <- trainingData[, -(1:7)]
+testingData <- testingData[, -(1:7)]
+
+dim(trainingData)
+dim(testingData)
+
+trainingData$classe <- factor(trainingData$classe)
+```
+
+---
+
+# Partition the Data
+
+The training dataset is divided into a training set (70%) and a validation set (30%).
+
+```{r partition-data}
+set.seed(123)
+
+inTrain <- createDataPartition(
+  trainingData$classe,
+  p = 0.70,
+  list = FALSE
+)
+
+trainSet <- trainingData[inTrain, ]
+validationSet <- trainingData[-inTrain, ]
+```
+
+---
+
+# Cross Validation
+
+Five-fold cross-validation is used while training the model.
+
+```{r cross-validation}
+fitControl <- trainControl(
+  method = "cv",
+  number = 5
+)
+```
+
+---
+
+# Train the Random Forest Model
+
+A Random Forest model is fitted because it performs well with high-dimensional classification problems.
+
+```{r train-model}
+set.seed(123)
+
+rfModel <- train(
+  classe ~ .,
+  data = trainSet,
+  method = "rf",
+  trControl = fitControl
+)
+
+rfModel
+```
+
+---
+
+# Predict the Validation Data
+
+The fitted model is used to predict the validation dataset.
+
+```{r validation-predictions}
+validationPredictions <- predict(
+  rfModel,
+  validationSet
+)
+
+head(validationPredictions)
+```
+
+---
+
+# Evaluate Model Performance
+
+The confusion matrix is used to evaluate the classification accuracy.
+
+```{r confusion-matrix}
+results <- confusionMatrix(
+  validationPredictions,
+  validationSet$classe
+)
+
+results
+```
+
+---
+
+# Calculate Accuracy and Out-of-Sample Error
+
+The overall accuracy and estimated out-of-sample error are calculated.
+
+```{r accuracy}
+accuracy <- results$overall["Accuracy"]
+
+accuracy
+
+outOfSampleError <- 1 - accuracy
+
+outOfSampleError
+```
+
+### Interpretation
+
+The Random Forest model achieved a very high prediction accuracy. The estimated out-of-sample error is the difference between one and the model accuracy. A low out-of-sample error indicates that the model is expected to perform well on unseen data.
+
+---
+
+# Predict the 20 Test Cases
+
+The trained model is applied to the testing dataset.
+
+```{r final-predictions}
+finalPredictions <- predict(
+  rfModel,
+  testingData
+)
+
+finalPredictions
+```
+
+---
+
+# Save Predictions
+
+The predictions can be exported to a CSV file.
+
+```{r save-predictions}
+write.csv(
+  finalPredictions,
+  "Course_Project_Predictions.csv",
+  row.names = FALSE
+)
+```
+
+---
+
+# Conclusion
+
+A Random Forest classifier was developed using the cleaned accelerometer dataset. Five-fold cross-validation was used during model training to reduce overfitting and estimate prediction performance. The model achieved high accuracy on the validation dataset, resulting in a very low estimated out-of-sample error. Finally, the trained model was used to predict the 20 unseen test cases provided for the course project.
